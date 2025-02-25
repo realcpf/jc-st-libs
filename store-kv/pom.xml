@@ -24,6 +24,11 @@
             <artifactId>lettuce-core</artifactId>
             <version>${lettuce.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-core</artifactId>
+            <version>0.8.2</version>
+        </dependency>
 
         <dependency>
             <groupId>org.apache.seatunnel</groupId>
