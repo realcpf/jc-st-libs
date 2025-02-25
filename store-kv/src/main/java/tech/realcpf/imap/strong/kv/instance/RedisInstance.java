@@ -27,7 +27,7 @@ public class RedisInstance implements KVInstance {
     private RedisClient redisClient;
     private StatefulRedisConnection<String, KVObjectData> connection;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RedisInstance.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RedisInstance.class);
 
     @Override
     public void build(Map<String, Object> prop) {
@@ -44,6 +44,7 @@ public class RedisInstance implements KVInstance {
 
     @Override
     public boolean set(Object key, Object value, String mapName) {
+        LOG.debug("redis set {} {} {}",key,value,mapName);
         String strKey = formatKeyStr(key, mapName, KEY_FLAG);
         String strValue = formatKeyStr(key, mapName, VALUE_FLAG);
         KVObjectData objValue = encodeObject(value);
@@ -55,14 +56,14 @@ public class RedisInstance implements KVInstance {
 
     @Override
     public Object get(Object key, String mapName) {
+        LOG.debug("redis get {} {}",key,mapName);
         String strValue = formatKeyStr(key, mapName, VALUE_FLAG);
         RedisFuture<KVObjectData> objValue = commands.get(strValue);
         try {
-
-            if (Objects.isNull(objValue) || !objValue.await(3, TimeUnit.SECONDS)) {
+            KVObjectData innerData = objValue.get(5,TimeUnit.SECONDS);
+            if (Objects.isNull(innerData)) {
                 return null;
             }
-            KVObjectData innerData = objValue.get();
             return serializer.deserialize(innerData.getData(), ClassUtils.getClass(innerData.getClassName()));
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -71,6 +72,7 @@ public class RedisInstance implements KVInstance {
 
     @Override
     public boolean del(Object key, String mapName) {
+        LOG.debug("redis del {} {}",key,mapName);
         String strKey = formatKeyStr(key, mapName, KEY_FLAG);
         String strValue = formatKeyStr(key, mapName, VALUE_FLAG);
         commands.del(strKey, strValue);
@@ -79,21 +81,23 @@ public class RedisInstance implements KVInstance {
 
     @Override
     public List<Object> keys(String mapName) {
+        LOG.debug("redis keys {}",mapName);
         RedisFuture<List<String>> keys = commands.keys(String.format(SEARCH_KEY_FORMATTER, mapName, KEY_FLAG));
         try {
             List<Object> objKeys = new LinkedList<>();
-            if (Objects.isNull(keys) || keys.await(5,TimeUnit.SECONDS)) {
+            List<String> innerKeys = keys.get(5,TimeUnit.SECONDS);
+            if (Objects.isNull(innerKeys)) {
                 return objKeys;
             }
-            List<String> innerKeys = keys.get();
             for (String k : innerKeys) {
                 RedisFuture<KVObjectData> objKey = commands.get(k);
-                if (Objects.isNull(objKey) || objKey.await(3,TimeUnit.SECONDS)) {
+                KVObjectData innerObjKey = objKey.get(5,TimeUnit.SECONDS);
+                if (Objects.isNull(innerObjKey)) {
                     continue;
                 }
-                KVObjectData innerObjKey = objKey.get();
                 objKeys.add(serializer.deserialize(innerObjKey.getData(), ClassUtils.getClass(innerObjKey.getClassName())));
             }
+            LOG.debug("keys load {} return size {}",innerKeys.size(),objKeys.size());
             return objKeys;
         } catch (Exception e) {
             throw new RuntimeException(e);

@@ -5,9 +5,10 @@ import com.hazelcast.map.MapStoreFactory;
 
 import java.util.Properties;
 
-public class KVMapStoreFactory implements MapStoreFactory<Object,Object> {
+public class KVMapStoreFactory implements MapStoreFactory<Object, Object> {
     @Override
     public MapLoader<Object, Object> newMapStore(String mapName, Properties properties) {
+        properties.setProperty("mapName", mapName);
         return new KVMapStore();
     }
 }
